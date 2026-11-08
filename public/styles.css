@@ -84,6 +84,39 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
 .brand { font-weight: 650; font-size: 17px; flex-shrink: 0; white-space: nowrap; }
 .topbar .search { flex: 1; max-width: 480px; margin: 0 auto; }
 
+/* Section tabs */
+.tabs { display: flex; gap: 4px; flex-shrink: 0; }
+.tabs a {
+  color: var(--muted); text-decoration: none; font-size: 14px;
+  padding: 6px 10px; border-radius: 6px;
+}
+.tabs a:hover { color: var(--text); background: var(--soft); }
+.tabs a[aria-current=page] { color: var(--text); font-weight: 600; background: var(--soft); }
+
+/* Simple single-column pages (Alerts, later Portfolio) */
+.page { max-width: 720px; margin: 0 auto; padding: 20px 24px 40px; }
+.page h2 { margin: 0 0 4px; font-size: 20px; }
+.page h3 { margin: 24px 0 6px; font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+.alert-list { list-style: none; margin: 0; padding: 0; }
+.alert-row {
+  display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center;
+  padding: 12px 4px; border-bottom: 1px solid var(--line);
+}
+.alert-row .sym-link { font-weight: 600; border: 0; background: none; padding: 0; cursor: pointer; color: var(--text); }
+.alert-row .sym-link:hover { color: var(--accent); }
+.alert-row .detail { font-size: 14px; color: var(--muted); }
+.alert-row .actions { display: flex; gap: 12px; align-items: center; }
+
+/* Alert control in the chart panel */
+.alert-control { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: -6px 0 14px; font-size: 14px; }
+.alert-control .status { color: var(--muted); }
+.alert-control form { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.alert-control select { width: auto; padding: 5px 8px; }
+.alert-control input[type=number] { width: 120px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 8px; }
+.alert-control .btn { padding: 5px 12px; }
+.alert-control .prompt { flex-basis: 100%; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; color: var(--muted); }
+.notice { cursor: pointer; }
+
 /* Search (autocomplete) */
 .search { position: relative; }
 .search-results {
@@ -221,8 +254,12 @@ dialog h3 { margin: 0 0 12px; font-size: 17px; }
 .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
 
 @media (max-width: 760px) {
-  .topbar { padding: 10px 16px; gap: 10px; }
+  .topbar { padding: 10px 16px; gap: 8px 10px; flex-wrap: wrap; }
+  .topbar .menu-wrap { margin-left: auto; }
+  .topbar .search { order: 3; flex-basis: 100%; max-width: none; }
   .brand { display: none; }
+  .tabs a { padding: 6px 8px; }
+  .page { padding: 16px 16px 40px; }
   .notice { margin: 12px 16px 0; }
   .layout { grid-template-columns: 1fr; padding: 16px 16px 32px; gap: 28px; }
   .chart-area { height: 260px; }

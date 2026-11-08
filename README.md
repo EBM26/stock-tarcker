@@ -4,7 +4,7 @@ A calm, simple web page for following a few stocks: watchlists, live quotes, cha
 
 Plain HTML/CSS/JS front end (`public/`), Cloudflare Pages Functions back end (`functions/`), Cloudflare D1 database (`migrations/`). All third-party API code lives in `functions/_lib/providers.js`.
 
-**Build status:** Phase 1 (setup, password gate, watchlists, search, live quotes) and Phase 2 (charts) are done.
+**Build status:** Phase 1 (setup, password gate, watchlists, search, live quotes) Phase 2 (charts) and Phase 3 (price alerts) are done.
 
 ## Free API keys
 
@@ -52,3 +52,4 @@ To change it, edit the `vars` section of `wrangler.jsonc` and push. Once `wrangl
 - Charts use TradingView Lightweight Charts **5.2.1**, pinned with an integrity hash in `public/index.html`. To upgrade, change the version and recompute the hash: `curl -s <url> | openssl dgst -sha384 -binary | openssl base64 -A`.
 - Chart data is cached on the server for 1 minute (1H, 1D) or 1 hour (1M, 1Y). 1M and 1Y share one daily fetch that includes ~200 extra days, so the moving averages start at the left edge. Twelve Data's free tier allows ~8 requests a minute; if that runs out, the chart says so and recovers a minute later.
 - If a required setting (`APP_PASSWORD`, `SESSION_SECRET`, `FINNHUB_API_KEY`, `TWELVEDATA_API_KEY` or the `DB` binding) is missing, the page shows a full-screen message naming it.
+- **Alerts** are checked in the browser using the prices already being polled, so they only work while the page is open in a tab. One alert per ticker; setting a new one replaces the old one. When a price crosses, the browser asks the server to mark the alert triggered (`UPDATE … WHERE status = 'active'`), and only the browser that wins shows the notification, so two open devices never both alert. Desktop notifications need permission (gear menu → Enable notifications). The chime plays only after you've clicked somewhere on the page, which is a browser rule.

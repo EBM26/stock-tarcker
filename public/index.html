@@ -36,12 +36,17 @@
   <div id="app" hidden>
     <header class="topbar">
       <span class="brand">Stocks</span>
+      <nav class="tabs" aria-label="Sections">
+        <a href="#watchlist" data-tab="watchlist">Watchlist</a>
+        <a href="#alerts" data-tab="alerts">Alerts</a>
+      </nav>
       <div id="main-search" class="search"></div>
       <div class="menu-wrap">
         <button id="settings-btn" class="icon-btn" aria-label="Settings" aria-haspopup="true" aria-expanded="false">
           <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.6.85 1 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
         </button>
         <div id="settings-menu" class="menu" role="menu" hidden>
+          <button type="button" role="menuitem" data-action="notifications" id="notif-menu-item">Enable notifications</button>
           <button type="button" role="menuitem" data-action="logout">Log out</button>
         </div>
       </div>
@@ -49,7 +54,7 @@
 
     <p id="notice" class="notice" role="status" hidden></p>
 
-    <main class="layout">
+    <main class="layout" id="view-watchlist">
       <section class="panel watchlist" aria-label="Watchlist">
         <div class="watchlist-head">
           <select id="list-select" aria-label="Choose watchlist"></select>
@@ -84,6 +89,7 @@
             <span id="detail-price" class="big-price">—</span>
             <span id="detail-change" class="change"></span>
           </div>
+          <div id="alert-control" class="alert-control"></div>
           <div class="chart-toolbar">
             <div class="ranges" role="group" aria-label="Chart range">
               <button type="button" data-range="1H">1H</button>
@@ -111,6 +117,20 @@
           </div>
           <div id="chart-legend" class="legend" hidden></div>
         </div>
+      </section>
+    </main>
+
+    <main class="page" id="view-alerts" hidden>
+      <h2>Alerts</h2>
+      <p class="muted small">Alerts only work while this page is open in a browser tab.</p>
+      <p id="alerts-empty" class="muted empty" hidden>No alerts yet. Open a ticker and choose “Set alert”.</p>
+      <section id="alerts-active-section" hidden>
+        <h3>Active</h3>
+        <ul id="alerts-active" class="alert-list"></ul>
+      </section>
+      <section id="alerts-triggered-section" hidden>
+        <h3>Triggered</h3>
+        <ul id="alerts-triggered" class="alert-list"></ul>
       </section>
     </main>
   </div>

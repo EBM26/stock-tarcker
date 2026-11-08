@@ -3,6 +3,7 @@ import { changeClass, formatChange, formatPrice, formatTime, isMarketOpen } from
 import { createSearch } from './search.js';
 import { store } from './storage.js';
 import * as chart from './chart.js';
+import * as alerts from './alerts.js';
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -25,12 +26,44 @@ const state = {
 
 // ------------------------------------------------------------ notices
 let noticeTimer = null;
-function notify(message) {
+function notify(message, { sticky = false } = {}) {
   const el = $('#notice');
   el.textContent = message;
+  el.title = 'Click to dismiss';
   el.hidden = false;
   clearTimeout(noticeTimer);
-  noticeTimer = setTimeout(() => (el.hidden = true), 6000);
+  if (!sticky) noticeTimer = setTimeout(() => (el.hidden = true), 6000);
+}
+$('#notice').addEventListener('click', () => ($('#notice').hidden = true));
+
+// ------------------------------------------------------------ tabs (Watchlist is the default screen)
+const TABS = ['watchlist', 'alerts'];
+function currentTab() {
+  const t = location.hash.slice(1);
+  return TABS.includes(t) ? t : 'watchlist';
+}
+function showTab() {
+  const tab = currentTab();
+  for (const t of TABS) $(`#view-${t}`).hidden = t !== tab;
+  document.querySelectorAll('.tabs a').forEach((a) => {
+    if (a.dataset.tab === tab) a.setAttribute('aria-current', 'page');
+    else a.removeAttribute('aria-current');
+  });
+  if (tab === 'alerts') alerts.renderTab();
+}
+window.addEventListener('hashchange', showTab);
+
+function openSymbol(item) {
+  if (currentTab() !== 'watchlist') location.hash = 'watchlist';
+  select(item, { scroll: true });
+}
+
+function nameFor(symbol) {
+  return (
+    state.items.find((i) => i.symbol === symbol)?.name ||
+    (state.selected?.symbol === symbol ? state.selected.name : '') ||
+    ''
+  );
 }
 
 // ------------------------------------------------------------ login gate
@@ -132,8 +165,10 @@ function setupMenu(buttonSel, menuSel, onAction) {
 }
 
 setupMenu('#settings-btn', '#settings-menu', (action) => {
+  if (action === 'notifications') alerts.enableNotifications();
   if (action === 'logout') logout();
 });
+$('#settings-btn').addEventListener('click', () => alerts.renderNotificationMenuItem());
 
 setupMenu('#list-menu-btn', '#list-menu', (action) => {
   if (action === 'new') createList();
@@ -357,7 +392,10 @@ function renderDetail() {
   const sel = state.selected;
   $('#detail-empty').hidden = !!sel;
   $('#detail').hidden = !sel;
-  if (!sel) return;
+  if (!sel) {
+    alerts.setCurrent(null);
+    return;
+  }
   const q = state.quotes.get(sel.symbol);
   $('#detail-name').textContent = sel.name || sel.symbol;
   $('#detail-symbol').textContent = sel.symbol;
@@ -372,12 +410,14 @@ function renderDetail() {
   }
   $('#add-btn').hidden = state.items.some((i) => i.symbol === sel.symbol);
   chart.show(sel.symbol, sel.name);
+  alerts.setCurrent(sel.symbol, sel.name);
 }
 
 async function fetchSingleQuote(symbol) {
   try {
     const data = await api(`/api/quotes?symbols=${encodeURIComponent(symbol)}`);
     mergeQuotes(data, [symbol]);
+    alerts.check();
   } catch (err) {
     if (err.status === 401) return;
     state.quoteErrors.set(symbol, err.message);
@@ -388,9 +428,10 @@ async function fetchSingleQuote(symbol) {
 
 // ------------------------------------------------------------ quotes & polling
 function pollSymbols() {
-  // Current watchlist + the ticker being viewed. (Active alerts join in Phase 3.)
+  // Current watchlist + the ticker being viewed + tickers with active alerts.
   const all = [...state.items.map((i) => i.symbol)];
   if (state.selected) all.push(state.selected.symbol);
+  all.push(...alerts.activeSymbols());
   return [...new Set(all)];
 }
 
@@ -420,6 +461,10 @@ async function refreshQuotes() {
   const seq = ++state.pollSeq;
   clearTimeout(state.pollTimer);
 
+  // Pick up alerts set or triggered on other devices before deciding what to poll.
+  await alerts.load();
+  if (seq !== state.pollSeq) return;
+
   let symbols = pollSymbols();
   const note = $('#poll-note');
   note.textContent = '';
@@ -434,6 +479,7 @@ async function refreshQuotes() {
       if (seq !== state.pollSeq) return; // a newer refresh started
       mergeQuotes(data, symbols);
       state.lastUpdated = new Date();
+      alerts.check();
       if (data.rateLimited) note.textContent = 'Some prices hit the data limit and will update next round.';
     } catch (err) {
       if (seq !== state.pollSeq || err.status === 401) return;
@@ -444,6 +490,7 @@ async function refreshQuotes() {
   renderRows();
   renderDetail();
   chart.onQuotesUpdated();
+  alerts.renderTab();
   scheduleNext();
 }
 
@@ -462,6 +509,13 @@ document.addEventListener('visibilitychange', () => {
 
 // ------------------------------------------------------------ boot
 chart.init({ getQuote: (symbol) => state.quotes.get(symbol) });
+alerts.init({
+  getQuote: (symbol) => state.quotes.get(symbol),
+  getName: nameFor,
+  openSymbol,
+  notify,
+});
+showTab();
 
 createSearch($('#main-search'), {
   onSelect: (r) => select(r, { scroll: true }),
