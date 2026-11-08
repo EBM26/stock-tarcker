@@ -103,6 +103,7 @@
             <span id="range-change" class="range-change"></span>
             <button id="chart-options-btn" type="button" class="link-btn" aria-expanded="false" aria-controls="chart-options">Chart options</button>
           </div>
+          <div id="chart-legend" class="legend" hidden></div>
           <div id="chart-options" class="chart-options" hidden>
             <div class="option-group" id="ma-options">
               <label><input type="checkbox" id="ma50"> 50-day average</label>
@@ -111,14 +112,17 @@
             </div>
             <div class="option-group compare-row">
               <div id="compare-search" class="compare-search"></div>
-              <button id="compare-clear" type="button" class="link-btn" hidden>Clear compare</button>
+              <span id="compare-chip" class="chip" hidden>
+                <b id="compare-chip-symbol"></b>
+                <span id="compare-chip-name" class="chip-name"></span>
+                <button id="compare-chip-remove" type="button" class="chip-x" aria-label="Stop comparing">×</button>
+              </span>
             </div>
           </div>
           <div class="chart-wrap">
             <div id="chart" class="chart-area"></div>
             <p id="chart-message" class="chart-message" hidden></p>
           </div>
-          <div id="chart-legend" class="legend" hidden></div>
         </div>
       </section>
     </main>

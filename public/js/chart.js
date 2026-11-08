@@ -43,13 +43,15 @@ const s = {
   touching: false,
   getQuote: () => null,
   onHoverEnd: () => {},
+  openSymbol: () => {},
 };
 
 // ------------------------------------------------------------ setup
 
-export function init({ getQuote, onHoverEnd }) {
+export function init({ getQuote, onHoverEnd, openSymbol }) {
   s.getQuote = getQuote;
   s.onHoverEnd = onHoverEnd;
+  s.openSymbol = openSymbol;
   setupTouch();
 
   document.querySelectorAll('.ranges button').forEach((btn) => {
@@ -77,7 +79,7 @@ export function init({ getQuote, onHoverEnd }) {
     placeholder: 'Compare with…',
     onSelect: (r) => setCompare(r),
   });
-  $('#compare-clear').addEventListener('click', () => setCompare(null));
+  $('#compare-chip-remove').addEventListener('click', () => setCompare(null));
 
   renderControls();
 }
@@ -438,7 +440,13 @@ function renderControls() {
   $('#ma200').disabled = !maAllowed;
   $('#ma-hint').hidden = maAllowed;
   $('#ma-options').hidden = LONG_RANGES.has(s.range);
-  $('#compare-clear').hidden = !s.compare;
+  // Active compare: show a chip (ticker, name, ×) in place of the empty search box.
+  $('#compare-search').hidden = !!s.compare;
+  $('#compare-chip').hidden = !s.compare;
+  if (s.compare) {
+    $('#compare-chip-symbol').textContent = s.compare.symbol;
+    $('#compare-chip-name').textContent = s.compare.name && s.compare.name !== s.compare.symbol ? s.compare.name : '';
+  }
 }
 
 function renderRangeChange(visible, comparing) {
@@ -459,34 +467,57 @@ function renderRangeChange(visible, comparing) {
 function renderLegend(visible, compBars, comparing, maAllowed, t = null) {
   const legend = $('#chart-legend');
   legend.innerHTML = '';
-  const add = (color, label, value) => {
-    const span = document.createElement('span');
-    const swatch = document.createElement('i');
-    swatch.style.background = color;
-    span.append(swatch, label);
-    if (value) {
-      const b = document.createElement('b');
-      b.textContent = value;
-      span.append(' ', b);
-    }
-    legend.append(span);
+  const make = (tag, className, text) => Object.assign(document.createElement(tag), { className, textContent: text });
+  const swatch = (color) => {
+    const i = document.createElement('i');
+    i.style.background = color;
+    return i;
   };
-  const pct = (bars) => {
-    const end = t === null ? bars[bars.length - 1] : barAt(bars, t);
-    const v = (end.c / bars[0].c - 1) * 100;
-    return `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v).toFixed(2)}%`;
+
+  // Compare: each ticker's price and % change from the start of the range,
+  // as of the hovered date (t) or the latest bar.
+  const entry = (color, symbol, bars, clickable) => {
+    const span = document.createElement('span');
+    let sym;
+    if (clickable) {
+      sym = make('button', 'sym', symbol);
+      sym.type = 'button';
+      sym.title = `Open ${symbol}`;
+      sym.addEventListener('click', () => s.openSymbol({ symbol, name: s.compare?.name || symbol }));
+    } else {
+      sym = make('span', 'sym', symbol);
+    }
+    span.append(swatch(color), sym);
+    const before = t !== null && t < bars[0].t; // compare ticker had no data yet on that date
+    if (before) {
+      span.append(make('span', 'muted', '—'));
+    } else {
+      const bar = t === null ? bars[bars.length - 1] : barAt(bars, t);
+      const v = (bar.c / bars[0].c - 1) * 100;
+      span.append(
+        make('span', 'price', formatPrice(bar.c)),
+        make('span', changeClass(v) || 'muted', `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v).toFixed(2)}%`)
+      );
+    }
+    return span;
   };
 
   if (comparing) {
-    add(COLORS.main, s.symbol, pct(visible));
-    add(COLORS.compare, s.compare.symbol, pct(compBars));
+    legend.append(
+      entry(COLORS.main, s.symbol, visible, false),
+      make('span', 'sep', '·'),
+      entry(COLORS.compare, s.compare.symbol, compBars, true)
+    );
   }
-  if (maAllowed && s.ma50) add(COLORS.ma50, '50-day avg');
-  if (maAllowed && s.ma200) add(COLORS.ma200, '200-day avg');
+  for (const n of [50, 200]) {
+    if (maAllowed && s[`ma${n}`]) {
+      const span = document.createElement('span');
+      span.append(swatch(COLORS[`ma${n}`]), `${n}-day avg`);
+      legend.append(span);
+    }
+  }
   if (s.compare && !comparing && s.compError) {
-    const note = document.createElement('span');
-    note.textContent = `Compare with ${s.compare.symbol}: ${s.compError}`;
-    legend.append(note);
+    legend.append(make('span', '', `Compare with ${s.compare.symbol}: ${s.compError}`));
   }
   legend.hidden = legend.childElementCount === 0;
 }

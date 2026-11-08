@@ -519,7 +519,7 @@ document.addEventListener('visibilitychange', () => {
 });
 
 // ------------------------------------------------------------ boot
-chart.init({ getQuote: (symbol) => state.quotes.get(symbol), onHoverEnd: () => renderDetail() });
+chart.init({ getQuote: (symbol) => state.quotes.get(symbol), onHoverEnd: () => renderDetail(), openSymbol });
 alerts.init({
   getQuote: (symbol) => state.quotes.get(symbol),
   getName: nameFor,
