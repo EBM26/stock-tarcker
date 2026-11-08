@@ -34,3 +34,20 @@ export function isMarketOpen(now = new Date()) {
   const minutes = Number(get('hour')) * 60 + Number(get('minute'));
   return minutes >= 9 * 60 + 30 && minutes < 16 * 60;
 }
+
+/** $1,234.56 (or −$1,234.56 / +$1,234.56 with signed=true). */
+export function formatMoney(n, { signed = false } = {}) {
+  if (typeof n !== 'number' || !isFinite(n)) return '—';
+  const abs = Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const sign = n < 0 ? '−' : signed && n > 0 ? '+' : '';
+  return `${sign}$${abs}`;
+}
+
+export function formatPercent(n) {
+  if (typeof n !== 'number' || !isFinite(n)) return '';
+  return `${n > 0 ? '+' : n < 0 ? '−' : ''}${Math.abs(n).toFixed(2)}%`;
+}
+
+export function formatShares(n) {
+  return typeof n === 'number' ? n.toLocaleString('en-US', { maximumFractionDigits: 6 }) : '—';
+}

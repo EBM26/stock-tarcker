@@ -38,6 +38,7 @@
       <span class="brand">Stocks</span>
       <nav class="tabs" aria-label="Sections">
         <a href="#watchlist" data-tab="watchlist">Watchlist</a>
+        <a href="#portfolio" data-tab="portfolio">Portfolio</a>
         <a href="#alerts" data-tab="alerts">Alerts</a>
       </nav>
       <div id="main-search" class="search"></div>
@@ -118,6 +119,52 @@
           <div id="chart-legend" class="legend" hidden></div>
         </div>
       </section>
+    </main>
+
+    <main class="page page-wide" id="view-portfolio" hidden>
+      <div class="page-head">
+        <h2>Portfolio</h2>
+        <button id="holding-add-btn" type="button" class="btn btn-primary">Add holding</button>
+      </div>
+      <form id="holding-form" class="holding-form" hidden>
+        <div class="field field-symbol">
+          <label>Ticker</label>
+          <div id="holding-search"></div>
+          <div id="holding-symbol" class="holding-symbol" hidden></div>
+        </div>
+        <div class="field">
+          <label for="holding-shares">Shares</label>
+          <input id="holding-shares" type="number" step="any" min="0" inputmode="decimal" required>
+        </div>
+        <div class="field">
+          <label for="holding-cost">Avg cost per share</label>
+          <input id="holding-cost" type="number" step="any" min="0" inputmode="decimal" required>
+        </div>
+        <div class="field field-actions">
+          <button type="submit" class="btn btn-primary">Save</button>
+          <button type="button" class="btn" id="holding-cancel">Cancel</button>
+        </div>
+      </form>
+      <p id="holdings-empty" class="muted empty" hidden>No holdings yet. Choose “Add holding” to track what you own.</p>
+      <div id="holdings-wrap" class="table-wrap" hidden>
+        <table class="holdings">
+          <thead>
+            <tr>
+              <th>Symbol</th>
+              <th class="num">Shares</th>
+              <th class="num">Avg cost</th>
+              <th class="num">Price</th>
+              <th class="num">Market value</th>
+              <th class="num">Profit/loss</th>
+              <th class="num">Today</th>
+              <th><span class="visually-hidden">Actions</span></th>
+            </tr>
+          </thead>
+          <tbody id="holdings-body"></tbody>
+          <tfoot id="holdings-foot"></tfoot>
+        </table>
+      </div>
+      <p id="holdings-note" class="muted small"></p>
     </main>
 
     <main class="page" id="view-alerts" hidden>

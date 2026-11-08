@@ -4,7 +4,7 @@ A calm, simple web page for following a few stocks: watchlists, live quotes, cha
 
 Plain HTML/CSS/JS front end (`public/`), Cloudflare Pages Functions back end (`functions/`), Cloudflare D1 database (`migrations/`). All third-party API code lives in `functions/_lib/providers.js`.
 
-**Build status:** Phase 1 (setup, password gate, watchlists, search, live quotes) Phase 2 (charts) and Phase 3 (price alerts) are done.
+**Build status:** Phase 1 (setup, password gate, watchlists, search, live quotes) Phase 2 (charts), Phase 3 (price alerts) and Phase 4 (portfolio) are done.
 
 ## Free API keys
 
@@ -53,3 +53,4 @@ To change it, edit the `vars` section of `wrangler.jsonc` and push. Once `wrangl
 - Chart data is cached on the server for 1 minute (1H, 1D) or 1 hour (1M, 1Y). 1M and 1Y share one daily fetch that includes ~200 extra days, so the moving averages start at the left edge. Twelve Data's free tier allows ~8 requests a minute; if that runs out, the chart says so and recovers a minute later.
 - If a required setting (`APP_PASSWORD`, `SESSION_SECRET`, `FINNHUB_API_KEY`, `TWELVEDATA_API_KEY` or the `DB` binding) is missing, the page shows a full-screen message naming it.
 - **Alerts** are checked in the browser using the prices already being polled, so they only work while the page is open in a tab. One alert per ticker; setting a new one replaces the old one. When a price crosses, the browser asks the server to mark the alert triggered (`UPDATE … WHERE status = 'active'`), and only the browser that wins shows the notification, so two open devices never both alert. Desktop notifications need permission (gear menu → Enable notifications). The chime plays only after you've clicked somewhere on the page, which is a browser rule.
+- **Portfolio** holdings are separate from watchlists (one row per ticker). Their prices are polled only while the Portfolio tab is open. Totals leave out any holding without a price yet and say so.

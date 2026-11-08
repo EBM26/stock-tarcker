@@ -4,6 +4,7 @@ import { createSearch } from './search.js';
 import { store } from './storage.js';
 import * as chart from './chart.js';
 import * as alerts from './alerts.js';
+import * as portfolio from './portfolio.js';
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -37,7 +38,7 @@ function notify(message, { sticky = false } = {}) {
 $('#notice').addEventListener('click', () => ($('#notice').hidden = true));
 
 // ------------------------------------------------------------ tabs (Watchlist is the default screen)
-const TABS = ['watchlist', 'alerts'];
+const TABS = ['watchlist', 'portfolio', 'alerts'];
 function currentTab() {
   const t = location.hash.slice(1);
   return TABS.includes(t) ? t : 'watchlist';
@@ -50,12 +51,17 @@ function showTab() {
     else a.removeAttribute('aria-current');
   });
   if (tab === 'alerts') alerts.renderTab();
+  if (tab === 'portfolio') {
+    portfolio.render();
+    refreshQuotes(); // loads holdings and fetches their prices (only polled while this tab is open)
+  }
 }
 window.addEventListener('hashchange', showTab);
 
 function openSymbol(item) {
   if (currentTab() !== 'watchlist') location.hash = 'watchlist';
-  select(item, { scroll: true });
+  const name = item.name && item.name !== item.symbol ? item.name : nameFor(item.symbol) || item.symbol;
+  select({ symbol: item.symbol, name }, { scroll: true });
 }
 
 function nameFor(symbol) {
@@ -432,6 +438,7 @@ function pollSymbols() {
   const all = [...state.items.map((i) => i.symbol)];
   if (state.selected) all.push(state.selected.symbol);
   all.push(...alerts.activeSymbols());
+  if (currentTab() === 'portfolio') all.push(...portfolio.symbols());
   return [...new Set(all)];
 }
 
@@ -461,8 +468,8 @@ async function refreshQuotes() {
   const seq = ++state.pollSeq;
   clearTimeout(state.pollTimer);
 
-  // Pick up alerts set or triggered on other devices before deciding what to poll.
-  await alerts.load();
+  // Pick up alerts (and holdings, on the Portfolio tab) changed on other devices before deciding what to poll.
+  await Promise.all([alerts.load(), currentTab() === 'portfolio' ? portfolio.load() : null]);
   if (seq !== state.pollSeq) return;
 
   let symbols = pollSymbols();
@@ -491,6 +498,7 @@ async function refreshQuotes() {
   renderDetail();
   chart.onQuotesUpdated();
   alerts.renderTab();
+  if (currentTab() === 'portfolio') portfolio.render();
   scheduleNext();
 }
 
@@ -514,6 +522,12 @@ alerts.init({
   getName: nameFor,
   openSymbol,
   notify,
+});
+portfolio.init({
+  getQuote: (symbol) => state.quotes.get(symbol),
+  openSymbol,
+  notify,
+  onHoldingsChanged: () => refreshQuotes(),
 });
 showTab();
 
