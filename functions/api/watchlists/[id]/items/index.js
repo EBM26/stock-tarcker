@@ -1,6 +1,5 @@
-import { cacheGet, cachePut, safely } from '../../../../_lib/cache.js';
+import { profileCached } from '../../../../_lib/company.js';
 import { errorResponse, json, normalizeSymbol, readJson, USER_ID } from '../../../../_lib/http.js';
-import { getCompanyProfile } from '../../../../_lib/providers.js';
 import { getOwnedWatchlist } from '../../../../_lib/watchlists.js';
 
 const MAX_ITEMS = 100;
@@ -43,13 +42,8 @@ export async function onRequestPost({ request, env, params }) {
 
 // Prefer the proper-case company name from Finnhub's profile; fine to skip if unavailable.
 async function officialName(env, symbol) {
-  const key = `profile:${symbol}`;
-  const cached = await safely(cacheGet(env.DB, key), null);
-  if (cached) return cached.name || null;
   try {
-    const profile = await getCompanyProfile(env, symbol);
-    await safely(cachePut(env.DB, key, profile || { name: null }, 7 * 24 * 60 * 60));
-    return profile?.name || null;
+    return (await profileCached(env, symbol))?.name || null;
   } catch {
     return null;
   }

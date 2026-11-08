@@ -5,6 +5,8 @@ import { store } from './storage.js';
 import * as chart from './chart.js';
 import * as alerts from './alerts.js';
 import * as portfolio from './portfolio.js';
+import * as news from './news.js';
+import * as risk from './risk.js';
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -172,7 +174,57 @@ function setupMenu(buttonSel, menuSel, onAction) {
 
 setupMenu('#settings-btn', '#settings-menu', (action) => {
   if (action === 'notifications') alerts.enableNotifications();
+  if (action === 'export') exportData();
+  if (action === 'import') $('#import-file').click();
   if (action === 'logout') logout();
+});
+
+// ------------------------------------------------------------ export / import (backup)
+async function exportData() {
+  try {
+    const data = await api('/api/export');
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `stock-tracker-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.append(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    notify('Backup downloaded.');
+  } catch (err) {
+    notify(`Couldn't export. ${err.message}`);
+  }
+}
+
+$('#import-file').addEventListener('change', async (e) => {
+  const file = e.target.files?.[0];
+  e.target.value = ''; // allow choosing the same file again
+  if (!file) return;
+  let backup;
+  try {
+    backup = JSON.parse(await file.text());
+  } catch {
+    notify("That file isn't valid JSON.");
+    return;
+  }
+  if (backup?.app !== 'stock-tracker') {
+    notify("That file isn't a Stock Tracker backup.");
+    return;
+  }
+  const when = backup.exported_at ? ` from ${new Date(backup.exported_at).toLocaleDateString()}` : '';
+  if (!confirm(`Import this backup${when}? It replaces ALL your current watchlists, holdings and alerts.`)) return;
+  try {
+    const { counts } = await api('/api/import', { method: 'POST', body: backup, timeoutMs: 60000 });
+    await loadLists(null);
+    await loadItems();
+    await refreshQuotes(); // also reloads alerts (and holdings on the Portfolio tab)
+    notify(
+      `Imported ${counts.watchlists} watchlist${counts.watchlists === 1 ? '' : 's'}, ${counts.holdings} holding${counts.holdings === 1 ? '' : 's'} and ${counts.alerts} alert${counts.alerts === 1 ? '' : 's'}.`
+    );
+  } catch (err) {
+    notify(`Couldn't import. ${err.message}`);
+  }
 });
 $('#settings-btn').addEventListener('click', () => alerts.renderNotificationMenuItem());
 
@@ -420,6 +472,8 @@ function renderDetail() {
   $('#add-btn').hidden = state.items.some((i) => i.symbol === sel.symbol);
   chart.show(sel.symbol, sel.name);
   alerts.setCurrent(sel.symbol, sel.name);
+  news.show(sel.symbol);
+  risk.show(sel.symbol);
 }
 
 async function fetchSingleQuote(symbol) {
@@ -532,6 +586,7 @@ portfolio.init({
   notify,
   onHoldingsChanged: () => refreshQuotes(),
 });
+risk.init();
 showTab();
 
 createSearch($('#main-search'), {

@@ -21,8 +21,8 @@ export function setConfigMissingHandler(fn) {
 
 const TIMEOUT_MS = 15000;
 
-export async function api(path, { method = 'GET', body, signal } = {}) {
-  const timeout = AbortSignal.timeout(TIMEOUT_MS);
+export async function api(path, { method = 'GET', body, signal, timeoutMs = TIMEOUT_MS } = {}) {
+  const timeout = AbortSignal.timeout(timeoutMs);
   const combined = signal && AbortSignal.any ? AbortSignal.any([signal, timeout]) : signal || timeout;
   let res;
   try {

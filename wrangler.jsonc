@@ -13,8 +13,9 @@
 		}
 	],
 	"vars": {
-		// Set the current Gemini Flash model name (used from Phase 5). Not a secret.
-		"GEMINI_MODEL": "",
-		"GEMINI_FALLBACK_MODEL": ""
+		// Gemini model names (not secrets). Current list: https://aistudio.google.com/docs/models
+		// Both were stable and on the free tier when set (Nov 2026).
+		"GEMINI_MODEL": "gemini-3.6-flash",
+		"GEMINI_FALLBACK_MODEL": "gemini-3.5-flash-lite"
 	}
 }

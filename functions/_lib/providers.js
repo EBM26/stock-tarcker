@@ -96,6 +96,47 @@ export async function getCompanyProfile(env, symbol) {
   return { symbol, name: p.name, exchange: p.exchange || null, industry: p.finnhubIndustry || null, marketCap: p.marketCapitalization ?? null, logo: p.logo || null, weburl: p.weburl || null };
 }
 
+/** Recent company news (from/to are YYYY-MM-DD). Returns [{ headline, summary, source, url, time }] newest first. */
+export async function getCompanyNews(env, symbol, from, to) {
+  const items = await finnhub(env, '/company-news', { symbol, from, to });
+  const seen = new Set();
+  const out = [];
+  for (const n of Array.isArray(items) ? items : []) {
+    const headline = String(n.headline || '').trim();
+    const url = String(n.url || '');
+    if (!headline || !/^https?:\/\//i.test(url) || seen.has(headline)) continue; // only real web links
+    seen.add(headline);
+    out.push({
+      headline,
+      summary: String(n.summary || '').trim(),
+      source: String(n.source || '').trim(),
+      url,
+      time: n.datetime ? n.datetime * 1000 : null,
+    });
+  }
+  out.sort((a, b) => (b.time || 0) - (a.time || 0));
+  return out;
+}
+
+/** A few basic financials; any field may be null (not every ticker has every metric). */
+export async function getBasicFinancials(env, symbol) {
+  const data = await finnhub(env, '/stock/metric', { symbol, metric: 'all' });
+  const m = data?.metric || {};
+  const num = (...keys) => {
+    for (const k of keys) if (typeof m[k] === 'number' && Number.isFinite(m[k])) return m[k];
+    return null;
+  };
+  return {
+    week52High: num('52WeekHigh'),
+    week52Low: num('52WeekLow'),
+    beta: num('beta'),
+    peRatio: num('peTTM', 'peBasicExclExtraTTM', 'peNormalizedAnnual'),
+    marketCapMillions: num('marketCapitalization'),
+    dividendYieldPercent: num('dividendYieldIndicatedAnnual', 'currentDividendYieldTTM'),
+    priceReturn52WeekPercent: num('52WeekPriceReturnDaily'),
+  };
+}
+
 // Finnhub search descriptions are ALL CAPS ("APPLE INC"); make them readable.
 const KEEP_UPPER = new Set(['ETF', 'ETN', 'REIT', 'ADR', 'USA', 'US', 'S&P', 'SPDR', 'II', 'III', 'IV', 'LP', 'NV', 'SA', 'AG', 'PLC', 'NYSE', 'QQQ', 'MSCI', 'ESG', 'AI', 'TR']);
 function prettyName(desc) {
@@ -155,4 +196,97 @@ function marketTimeToSeconds(s) {
   return Date.UTC(+m[1], +m[2] - 1, +m[3], +(m[4] || 0), +(m[5] || 0), +(m[6] || 0)) / 1000;
 }
 
-// ---------------------------------------------------------------- Gemini (Phase 5)
+// ---------------------------------------------------------------- Gemini
+// Docs: https://aistudio.google.com/api-reference/generate-content  (models: https://aistudio.google.com/docs/models)
+// The model name always comes from env (GEMINI_MODEL / GEMINI_FALLBACK_MODEL); never hardcoded.
+
+const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
+const GEMINI_BUSY = 'Gemini is busy, try again in a minute.';
+const RETRY_DELAYS_MS = [1000, 3000];
+
+async function geminiOnce(env, model, { system, prompt, schema }) {
+  const generationConfig = { responseMimeType: 'application/json', temperature: 0.2 };
+  if (schema) generationConfig.responseJsonSchema = schema;
+  let res;
+  try {
+    res = await fetch(`${GEMINI_BASE}/${encodeURIComponent(model)}:generateContent`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': env.GEMINI_API_KEY },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: system }] },
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig,
+      }),
+      signal: AbortSignal.timeout(30000),
+    });
+  } catch (err) {
+    const timeout = err?.name === 'TimeoutError' || err?.name === 'AbortError';
+    throw new ProviderError(timeout ? 'timeout' : 'upstream', timeout ? 'Gemini took too long to respond.' : "Couldn't reach Gemini.", 504);
+  }
+  if (res.status === 503 || res.status === 429) throw new ProviderError('busy', GEMINI_BUSY, 503);
+  let data = null;
+  try {
+    data = await res.json();
+  } catch {
+    /* handled below */
+  }
+  if (res.status === 400) {
+    throw new ProviderError('bad_request', `Gemini rejected the request: ${data?.error?.message || 'bad request'}`, 502);
+  }
+  if (res.status === 401 || res.status === 403) throw new ProviderError('bad_key', 'Gemini rejected the API key.', 502);
+  if (res.status === 404) throw new ProviderError('config', `Gemini model "${model}" was not found. Check GEMINI_MODEL.`, 502);
+  if (!res.ok) throw new ProviderError('upstream', `Gemini returned an error (${res.status}).`);
+
+  const cand = data?.candidates?.[0];
+  const text = (cand?.content?.parts || []).map((p) => p.text || '').join('');
+  if (!text) {
+    const why = data?.promptFeedback?.blockReason || cand?.finishReason || 'empty response';
+    throw new ProviderError('upstream', `Gemini returned no answer (${why}).`);
+  }
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new ProviderError('bad_output', 'Gemini returned an unreadable answer. Try again.');
+  }
+}
+
+/**
+ * JSON-mode generation with the spec's retry policy: on 503/429 retry twice (1 s, then 3 s);
+ * if still failing and GEMINI_FALLBACK_MODEL is set, try that once. Returns { json, model }.
+ */
+export async function generateJson(env, { system, prompt, schema }) {
+  if (!env.GEMINI_API_KEY) throw new ProviderError('config', 'Risk summaries need GEMINI_API_KEY to be set on the server.', 500);
+  const primary = String(env.GEMINI_MODEL || '').trim();
+  if (!primary) throw new ProviderError('config', 'Risk summaries need GEMINI_MODEL to be set (see README).', 500);
+  const fallback = String(env.GEMINI_FALLBACK_MODEL || '').trim();
+
+  const attempt = async (model) => {
+    try {
+      return await geminiOnce(env, model, { system, prompt, schema });
+    } catch (err) {
+      // If a model doesn't accept the schema field, plain JSON mode still works (the prompt has the shape).
+      if (err.code === 'bad_request' && schema) return geminiOnce(env, model, { system, prompt });
+      throw err;
+    }
+  };
+
+  let lastErr;
+  for (let i = 0; i <= RETRY_DELAYS_MS.length; i++) {
+    try {
+      return { json: await attempt(primary), model: primary };
+    } catch (err) {
+      lastErr = err;
+      if (err.code !== 'busy') break; // only 503/429 are retried
+      if (i < RETRY_DELAYS_MS.length) await new Promise((r) => setTimeout(r, RETRY_DELAYS_MS[i]));
+    }
+  }
+  if (fallback && fallback !== primary && ['busy', 'timeout', 'upstream'].includes(lastErr?.code)) {
+    try {
+      return { json: await attempt(fallback), model: fallback };
+    } catch (err) {
+      lastErr = err;
+    }
+  }
+  if (['busy', 'timeout'].includes(lastErr?.code)) throw new ProviderError('busy', GEMINI_BUSY, 503);
+  throw lastErr;
+}

@@ -4,7 +4,7 @@ A calm, simple web page for following a few stocks: watchlists, live quotes, cha
 
 Plain HTML/CSS/JS front end (`public/`), Cloudflare Pages Functions back end (`functions/`), Cloudflare D1 database (`migrations/`). All third-party API code lives in `functions/_lib/providers.js`.
 
-**Build status:** Phase 1 (setup, password gate, watchlists, search, live quotes) Phase 2 (charts), Phase 3 (price alerts) and Phase 4 (portfolio) are done.
+**Build status:** Phase 1 (setup, password gate, watchlists, search, live quotes) All five phases are done: watchlists and quotes, charts, price alerts, portfolio, and news / AI risk summaries / settings.
 
 ## Free API keys
 
@@ -40,7 +40,7 @@ npm run dev                           # http://localhost:8788
 
 ## Changing the Gemini model
 
-The model name is never hardcoded. It comes from the plain (non-secret) variable `GEMINI_MODEL`, with an optional `GEMINI_FALLBACK_MODEL` that is tried if the main model keeps returning 503.
+The model name is never hardcoded. It comes from the plain (non-secret) variable `GEMINI_MODEL`, with an optional `GEMINI_FALLBACK_MODEL` that is tried once if the main model is still busy (503/429) after two retries. They're currently set to `gemini-3.6-flash` and `gemini-3.5-flash-lite` (both stable and on the free tier as of November 2026).
 
 To change it, edit the `vars` section of `wrangler.jsonc` and push. Once `wrangler.jsonc` is used for deploys, it is the source of truth for these variables, so the dashboard won't let you edit them there. Check <https://ai.google.dev/gemini-api/docs/models> for the current Flash model names. For local dev, you can also set them in `.dev.vars`.
 
@@ -54,3 +54,6 @@ To change it, edit the `vars` section of `wrangler.jsonc` and push. Once `wrangl
 - If a required setting (`APP_PASSWORD`, `SESSION_SECRET`, `FINNHUB_API_KEY`, `TWELVEDATA_API_KEY` or the `DB` binding) is missing, the page shows a full-screen message naming it.
 - **Alerts** are checked in the browser using the prices already being polled, so they only work while the page is open in a tab. One alert per ticker; setting a new one replaces the old one. When a price crosses, the browser asks the server to mark the alert triggered (`UPDATE … WHERE status = 'active'`), and only the browser that wins shows the notification, so two open devices never both alert. Desktop notifications need permission (gear menu → Enable notifications). The chime plays only after you've clicked somewhere on the page, which is a browser rule.
 - **Portfolio** holdings are separate from watchlists (one row per ticker). Their prices are polled only while the Portfolio tab is open. Totals leave out any holding without a price yet and say so.
+- **News** shows the latest 5 headlines from the past week (Finnhub, cached 15 minutes).
+- **Risk summary** runs only when you click "Summarize risks". The server gathers the company profile, basic financials and up to 15 recent headlines, asks Gemini for JSON, validates it, and saves one summary per ticker per US market day (click Refresh for a new one). Gemini's free tier has daily limits; if it's busy you'll see "Gemini is busy, try again in a minute."
+- **Settings** (gear icon): enable notifications, export data (downloads a JSON backup of watchlists, holdings and alerts), import data (replaces everything after a confirmation; done in one database transaction), log out.

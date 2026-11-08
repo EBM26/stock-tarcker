@@ -48,8 +48,11 @@
         </button>
         <div id="settings-menu" class="menu" role="menu" hidden>
           <button type="button" role="menuitem" data-action="notifications" id="notif-menu-item">Enable notifications</button>
+          <button type="button" role="menuitem" data-action="export">Export data</button>
+          <button type="button" role="menuitem" data-action="import">Import data…</button>
           <button type="button" role="menuitem" data-action="logout">Log out</button>
         </div>
+        <input id="import-file" type="file" accept="application/json,.json" hidden>
       </div>
     </header>
 
@@ -123,6 +126,20 @@
             <div id="chart" class="chart-area"></div>
             <p id="chart-message" class="chart-message" hidden></p>
           </div>
+
+          <section class="news" aria-labelledby="news-title">
+            <h3 id="news-title">News</h3>
+            <ul id="news-list" class="news-list"></ul>
+            <p id="news-message" class="muted small" hidden></p>
+          </section>
+
+          <section class="risk" aria-labelledby="risk-title">
+            <h3 id="risk-title" class="visually-hidden">Risk summary</h3>
+            <button id="risk-btn" type="button" class="btn">Summarize risks</button>
+            <p id="risk-status" class="muted small" role="status" hidden></p>
+            <div id="risk-body" hidden></div>
+            <p class="muted small disclaimer">AI summary of recent news and basic data. Not financial advice.</p>
+          </section>
         </div>
       </section>
     </main>
