@@ -7,6 +7,8 @@
   <meta name="robots" content="noindex">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M4 24l8-8 6 5 10-12' fill='none' stroke='%232563eb' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@5.2.1/dist/lightweight-charts.standalone.production.js"
+    integrity="sha384-KkYqTZlM13Zya6fVUF3IGCBOQ1ehFeJVVgxaVvD/0MebineF9EI8Jkd3NnWNChqN" crossorigin="anonymous" defer></script>
   <script type="module" src="js/app.js"></script>
 </head>
 <body>
@@ -82,9 +84,32 @@
             <span id="detail-price" class="big-price">—</span>
             <span id="detail-change" class="change"></span>
           </div>
-          <div id="chart" class="chart-area">
-            <span class="muted">Chart coming soon.</span>
+          <div class="chart-toolbar">
+            <div class="ranges" role="group" aria-label="Chart range">
+              <button type="button" data-range="1H">1H</button>
+              <button type="button" data-range="1D">1D</button>
+              <button type="button" data-range="1M">1M</button>
+              <button type="button" data-range="1Y">1Y</button>
+            </div>
+            <span id="range-change" class="range-change"></span>
+            <button id="chart-options-btn" type="button" class="link-btn" aria-expanded="false" aria-controls="chart-options">Chart options</button>
           </div>
+          <div id="chart-options" class="chart-options" hidden>
+            <div class="option-group">
+              <label><input type="checkbox" id="ma50"> 50-day average</label>
+              <label><input type="checkbox" id="ma200"> 200-day average</label>
+              <span id="ma-hint" class="muted small">Moving averages are available on 1M and 1Y.</span>
+            </div>
+            <div class="option-group compare-row">
+              <div id="compare-search" class="compare-search"></div>
+              <button id="compare-clear" type="button" class="link-btn" hidden>Clear compare</button>
+            </div>
+          </div>
+          <div class="chart-wrap">
+            <div id="chart" class="chart-area"></div>
+            <p id="chart-message" class="chart-message" hidden></p>
+          </div>
+          <div id="chart-legend" class="legend" hidden></div>
         </div>
       </section>
     </main>

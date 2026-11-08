@@ -1,6 +1,8 @@
 import { api, ApiError, setConfigMissingHandler, setUnauthorizedHandler } from './api.js';
 import { changeClass, formatChange, formatPrice, formatTime, isMarketOpen } from './format.js';
 import { createSearch } from './search.js';
+import { store } from './storage.js';
+import * as chart from './chart.js';
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -19,24 +21,6 @@ const state = {
   pollTimer: null,
   pollSeq: 0,
   started: false,
-};
-
-// ------------------------------------------------------------ per-device conveniences
-const store = {
-  get(key) {
-    try {
-      return JSON.parse(localStorage.getItem(`st:${key}`));
-    } catch {
-      return null;
-    }
-  },
-  set(key, value) {
-    try {
-      localStorage.setItem(`st:${key}`, JSON.stringify(value));
-    } catch {
-      /* storage unavailable; ignore */
-    }
-  },
 };
 
 // ------------------------------------------------------------ notices
@@ -387,6 +371,7 @@ function renderDetail() {
     ch.className = 'change muted';
   }
   $('#add-btn').hidden = state.items.some((i) => i.symbol === sel.symbol);
+  chart.show(sel.symbol, sel.name);
 }
 
 async function fetchSingleQuote(symbol) {
@@ -458,6 +443,7 @@ async function refreshQuotes() {
   renderUpdated();
   renderRows();
   renderDetail();
+  chart.onQuotesUpdated();
   scheduleNext();
 }
 
@@ -475,6 +461,8 @@ document.addEventListener('visibilitychange', () => {
 });
 
 // ------------------------------------------------------------ boot
+chart.init({ getQuote: (symbol) => state.quotes.get(symbol) });
+
 createSearch($('#main-search'), {
   onSelect: (r) => select(r, { scroll: true }),
 });

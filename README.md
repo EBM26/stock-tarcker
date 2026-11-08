@@ -4,7 +4,7 @@ A calm, simple web page for following a few stocks: watchlists, live quotes, cha
 
 Plain HTML/CSS/JS front end (`public/`), Cloudflare Pages Functions back end (`functions/`), Cloudflare D1 database (`migrations/`). All third-party API code lives in `functions/_lib/providers.js`.
 
-**Build status:** Phase 1 (setup, password gate, watchlists, search, live quotes) is done.
+**Build status:** Phase 1 (setup, password gate, watchlists, search, live quotes) and Phase 2 (charts) are done.
 
 ## Free API keys
 
@@ -49,3 +49,6 @@ To change it, edit the `vars` section of `wrangler.jsonc` and push. Once `wrangl
 - Quotes are cached on the server for 30 seconds, so several open devices share the same Finnhub calls.
 - The page refreshes prices every 60 s during US market hours (9:30–16:00 ET, weekdays) and every 15 min otherwise. Market holidays aren't detected; on those days it just polls more often than needed.
 - Prices on Finnhub's free tier may be delayed.
+- Charts use TradingView Lightweight Charts **5.2.1**, pinned with an integrity hash in `public/index.html`. To upgrade, change the version and recompute the hash: `curl -s <url> | openssl dgst -sha384 -binary | openssl base64 -A`.
+- Chart data is cached on the server for 1 minute (1H, 1D) or 1 hour (1M, 1Y). 1M and 1Y share one daily fetch that includes ~200 extra days, so the moving averages start at the left edge. Twelve Data's free tier allows ~8 requests a minute; if that runs out, the chart says so and recovers a minute later.
+- If a required setting (`APP_PASSWORD`, `SESSION_SECRET`, `FINNHUB_API_KEY`, `TWELVEDATA_API_KEY` or the `DB` binding) is missing, the page shows a full-screen message naming it.

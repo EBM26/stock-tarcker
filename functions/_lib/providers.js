@@ -106,5 +106,53 @@ function prettyName(desc) {
     .join(' ');
 }
 
-// ---------------------------------------------------------------- Twelve Data (Phase 2)
+// ---------------------------------------------------------------- Twelve Data
+// Docs: https://twelvedata.com/docs/market-data/time-series  (free tier ~8 credits/min + daily cap)
+
+const TWELVEDATA_BASE = 'https://api.twelvedata.com';
+const RATE_LIMIT_MESSAGE = 'Chart data limit reached, try again in a minute.';
+
+/**
+ * Historical closes, oldest first. `interval`: '1min' | '5min' | '1day'.
+ * Returns { bars: [{ t, c }] } where t is the bar's exchange-local (New York) wall-clock time
+ * expressed as seconds-since-epoch-as-if-UTC, so the chart axis shows market time.
+ */
+export async function getTimeSeries(env, symbol, interval, outputsize) {
+  if (!env.TWELVEDATA_API_KEY) throw new ProviderError('config', 'Twelve Data API key is not set on the server.', 500);
+  const params = new URLSearchParams({ symbol, interval, outputsize: String(outputsize), order: 'asc', timezone: 'America/New_York' });
+  let data;
+  try {
+    data = await fetchJson(`${TWELVEDATA_BASE}/time_series?${params}`, {
+      headers: { Authorization: `apikey ${env.TWELVEDATA_API_KEY}` },
+      provider: 'Twelve Data',
+      timeoutMs: 10000,
+    });
+  } catch (err) {
+    if (err.code === 'rate_limited') throw new ProviderError('rate_limited', RATE_LIMIT_MESSAGE, 429);
+    throw err;
+  }
+  // Twelve Data can report errors inside an HTTP 200 body: { status: "error", code, message }.
+  if (data?.status === 'error') {
+    if (data.code === 429) throw new ProviderError('rate_limited', RATE_LIMIT_MESSAGE, 429);
+    if (data.code === 400 || data.code === 404) throw new ProviderError('not_found', `No chart data for ${symbol}.`, 404);
+    if (data.code === 401 || data.code === 403) throw new ProviderError('bad_key', 'Twelve Data rejected the API key (or this data needs a paid plan).', 502);
+    throw new ProviderError('upstream', 'Twelve Data returned an error.');
+  }
+  const bars = [];
+  for (const v of data?.values || []) {
+    const t = marketTimeToSeconds(v.datetime);
+    const c = Number(v.close);
+    if (t !== null && Number.isFinite(c)) bars.push({ t, c });
+  }
+  if (!bars.length) throw new ProviderError('not_found', `No chart data for ${symbol}.`, 404);
+  return { bars };
+}
+
+// "2026-11-06 15:55:00" or "2026-11-06" -> seconds, treating the wall-clock time as UTC.
+function marketTimeToSeconds(s) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?$/.exec(String(s || ''));
+  if (!m) return null;
+  return Date.UTC(+m[1], +m[2] - 1, +m[3], +(m[4] || 0), +(m[5] || 0), +(m[6] || 0)) / 1000;
+}
+
 // ---------------------------------------------------------------- Gemini (Phase 5)
