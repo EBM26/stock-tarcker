@@ -1,0 +1,8 @@
+# Copy to .dev.vars for local development (never commit .dev.vars).
+FINNHUB_API_KEY=
+TWELVEDATA_API_KEY=
+GEMINI_API_KEY=
+APP_PASSWORD=
+SESSION_SECRET=
+GEMINI_MODEL=
+GEMINI_FALLBACK_MODEL=

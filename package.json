@@ -1,0 +1,13 @@
+{
+  "name": "stock-tracker",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler pages dev",
+    "db:migrate:local": "wrangler d1 migrations apply stock-tracker --local",
+    "db:migrate:remote": "wrangler d1 migrations apply stock-tracker --remote"
+  },
+  "devDependencies": {
+    "wrangler": "^4.158.0"
+  }
+}

@@ -1,0 +1,51 @@
+# Stocks
+
+A calm, simple web page for following a few stocks: watchlists, live quotes, charts, alerts, a portfolio, news and AI risk summaries. Built for one user and protected by a password.
+
+Plain HTML/CSS/JS front end (`public/`), Cloudflare Pages Functions back end (`functions/`), Cloudflare D1 database (`migrations/`). All third-party API code lives in `functions/_lib/providers.js`.
+
+**Build status:** Phase 1 (setup, password gate, watchlists, search, live quotes) is done.
+
+## Free API keys
+
+| Key | Where to get it |
+|---|---|
+| `FINNHUB_API_KEY` | Sign up at <https://finnhub.io/register>. The key is on your dashboard. Free tier: about 60 calls/minute. |
+| `TWELVEDATA_API_KEY` | Sign up at <https://twelvedata.com/pricing> (Basic/free plan). The key is under *API Keys*. Free tier: about 8 calls/minute plus a daily cap. Needed from Phase 2. |
+| `GEMINI_API_KEY` | Open <https://aistudio.google.com/apikey> and create a key. Don't enable billing, so it stays on the free tier. Needed from Phase 5. |
+
+You choose `APP_PASSWORD` yourself. For `SESSION_SECRET`, use a long random string, e.g. `openssl rand -base64 32`.
+
+## Setup and deployment
+
+1. **Install tools:** `npm install` (installs Wrangler), then `npx wrangler login`.
+2. **Create the database:** `npx wrangler d1 create stock-tracker`.
+   - Copy the `database_id` it prints into `wrangler.jsonc`, replacing `PASTE_REAL_DATABASE_ID_HERE`. **Never deploy with the placeholder.**
+   - The binding name must stay `DB`.
+   - If Wrangler offers to add the database entry to your config automatically, answer **no**. That would create a second, mismatched entry.
+3. **Apply migrations:** `npx wrangler d1 migrations apply stock-tracker --remote`.
+4. **Push to a private GitHub repo.**
+5. **Create the Cloudflare project as Pages, not a Worker.** In the dashboard, go to *Workers & Pages → Create*. The dashboard sometimes defaults to the Workers flow; look for the **Pages** tab or the "Looking to deploy Pages?" link, then **Connect to Git** and pick the repo.
+   - Framework preset: *None*. Build command: leave empty. Build output directory: `public`.
+6. **Add secrets before the first real deploy.** Under *Settings → Variables and Secrets*, add all five as type **Secret**: `FINNHUB_API_KEY`, `TWELVEDATA_API_KEY`, `GEMINI_API_KEY`, `APP_PASSWORD`, `SESSION_SECRET`. Then redeploy.
+7. **Check the deploy log.** It must include **"Found Functions directory at /functions"** and **"Compiled Worker successfully."** If those lines are missing, only static files were deployed.
+
+### Local development
+
+```sh
+cp .dev.vars.example .dev.vars        # fill in your keys (.dev.vars is git-ignored)
+npm run db:migrate:local              # local D1 database
+npm run dev                           # http://localhost:8788
+```
+
+## Changing the Gemini model
+
+The model name is never hardcoded. It comes from the plain (non-secret) variable `GEMINI_MODEL`, with an optional `GEMINI_FALLBACK_MODEL` that is tried if the main model keeps returning 503.
+
+To change it, edit the `vars` section of `wrangler.jsonc` and push. Once `wrangler.jsonc` is used for deploys, it is the source of truth for these variables, so the dashboard won't let you edit them there. Check <https://ai.google.dev/gemini-api/docs/models> for the current Flash model names. For local dev, you can also set them in `.dev.vars`.
+
+## Notes
+
+- Quotes are cached on the server for 30 seconds, so several open devices share the same Finnhub calls.
+- The page refreshes prices every 60 s during US market hours (9:30–16:00 ET, weekdays) and every 15 min otherwise. Market holidays aren't detected; on those days it just polls more often than needed.
+- Prices on Finnhub's free tier may be delayed.
