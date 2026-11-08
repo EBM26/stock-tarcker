@@ -1,7 +1,7 @@
 // Chart panel: range toggles, line chart, moving averages and compare.
 // Uses TradingView Lightweight Charts v5 (global `LightweightCharts`, pinned in index.html).
 import { api } from './api.js';
-import { formatChange, formatPrice, isMarketOpen } from './format.js';
+import { changeClass, formatChange, formatPrice, isMarketOpen } from './format.js';
 import { createSearch } from './search.js';
 import { store } from './storage.js';
 
@@ -34,13 +34,21 @@ const s = {
   seq: 0,
   chart: null,
   series: null,
+  view: null, // what's drawn: { visible, compBars, comparing, maAllowed, toMain }
+  hovering: false,
+  hoverT: null,
+  pointerType: 'mouse',
+  touching: false,
   getQuote: () => null,
+  onHoverEnd: () => {},
 };
 
 // ------------------------------------------------------------ setup
 
-export function init({ getQuote }) {
+export function init({ getQuote, onHoverEnd }) {
   s.getQuote = getQuote;
+  s.onHoverEnd = onHoverEnd;
+  setupTouch();
 
   document.querySelectorAll('.ranges button').forEach((btn) => {
     btn.addEventListener('click', () => setRange(btn.dataset.range));
@@ -87,8 +95,14 @@ function ensureChart() {
     grid: { vertLines: { visible: false }, horzLines: { color: COLORS.grid } },
     rightPriceScale: { borderVisible: false, scaleMargins: { top: 0.1, bottom: 0.08 } },
     timeScale: { borderVisible: false, fixLeftEdge: true, fixRightEdge: true },
-    crosshair: { horzLine: { labelBackgroundColor: '#374151' }, vertLine: { labelBackgroundColor: '#374151' } },
-    // A calm, static chart: no drag/zoom, so the page scrolls normally on phones.
+    // Only a subtle vertical line with its date label; the price goes in the header.
+    crosshair: {
+      mode: LWC.CrosshairMode.Normal,
+      horzLine: { visible: false, labelVisible: false },
+      vertLine: { color: '#c7cbd1', width: 1, style: LWC.LineStyle.Solid, labelBackgroundColor: '#6b7280' },
+    },
+    // A calm, static chart: the range buttons control time, so no drag/zoom.
+    // Touch is handled in setupTouch() so vertical swipes still scroll the page.
     handleScroll: false,
     handleScale: false,
   });
@@ -107,7 +121,112 @@ function ensureChart() {
     compare: line(COLORS.compare, 2),
     main: line(COLORS.main, 2),
   };
+  // Mouse hover (touch is handled separately below).
+  s.chart.subscribeCrosshairMove((param) => {
+    if (s.pointerType === 'touch') return;
+    if (param.time === undefined || !param.point) endHover();
+    else showHover(param.time);
+  });
   return s.chart;
+}
+
+// ------------------------------------------------------------ hover / touch scrubbing
+
+// The chart container uses `touch-action: pan-y`: vertical swipes scroll the page (the browser
+// then sends pointercancel), horizontal drags and taps move the crosshair.
+function setupTouch() {
+  const el = $('#chart');
+  const at = (e) => {
+    if (!s.chart || !s.view) return;
+    const x = e.clientX - el.getBoundingClientRect().left;
+    const time = s.chart.timeScale().coordinateToTime(x);
+    if (time === null) return;
+    const bar = barAt(s.view.visible, time);
+    s.chart.setCrosshairPosition(s.view.toMain(bar.c), bar.t, s.series.main);
+    showHover(bar.t);
+  };
+  el.addEventListener(
+    'pointerdown',
+    (e) => {
+      s.pointerType = e.pointerType;
+      if (e.pointerType !== 'touch') return;
+      s.touching = true;
+      at(e);
+    },
+    true
+  );
+  el.addEventListener(
+    'pointermove',
+    (e) => {
+      s.pointerType = e.pointerType;
+      if (e.pointerType === 'touch' && s.touching) at(e);
+    },
+    true
+  );
+  const end = (e) => {
+    if (e.pointerType !== 'touch') return;
+    s.touching = false;
+    // After the chart library's own tap handling, so its crosshair doesn't linger.
+    setTimeout(() => {
+      if (s.touching) return;
+      s.chart?.clearCrosshairPosition();
+      endHover();
+    }, 0);
+  };
+  el.addEventListener('pointerup', end, true);
+  el.addEventListener('pointercancel', end, true);
+}
+
+/** Last bar at or before time t (bars sorted by t). */
+function barAt(bars, t) {
+  let lo = 0;
+  let hi = bars.length - 1;
+  if (t <= bars[0].t) return bars[0];
+  while (lo < hi) {
+    const mid = (lo + hi + 1) >> 1;
+    if (bars[mid].t <= t) lo = mid;
+    else hi = mid - 1;
+  }
+  return bars[lo];
+}
+
+function formatBarTime(t) {
+  const intraday = s.main?.interval !== '1day';
+  const opts = intraday
+    ? { timeZone: 'UTC', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }
+    : { timeZone: 'UTC', month: 'short', day: 'numeric', year: 'numeric' };
+  // Bar times are New York wall-clock time stored as UTC, so format in UTC.
+  return new Date(t * 1000).toLocaleString('en-US', opts) + (intraday ? ' ET' : '');
+}
+
+/** Put the hovered point's price, change from the start of the range and date in the header. */
+function showHover(t) {
+  const v = s.view;
+  if (!v) return;
+  const bar = barAt(v.visible, t);
+  const first = v.visible[0].c;
+  const change = bar.c - first;
+  s.hovering = true;
+  s.hoverT = bar.t;
+  $('#detail-price').textContent = formatPrice(bar.c);
+  const ch = $('#detail-change');
+  ch.textContent = `${formatChange(change, (change / first) * 100)} · ${formatBarTime(bar.t)}`;
+  ch.className = `change ${changeClass(change)}`;
+  if (v.comparing) renderLegend(v.visible, v.compBars, v.comparing, v.maAllowed, bar.t);
+}
+
+/** Restore the live price and today's change. */
+function endHover() {
+  if (!s.hovering) return;
+  s.hovering = false;
+  s.hoverT = null;
+  s.onHoverEnd();
+  const v = s.view;
+  if (v) renderLegend(v.visible, v.compBars, v.comparing, v.maAllowed);
+}
+
+export function isHovering() {
+  return s.hovering;
 }
 
 // ------------------------------------------------------------ public API
@@ -251,8 +370,9 @@ function draw() {
   }
 
   chart.timeScale().fitContent();
+  s.view = { visible, compBars, comparing, maAllowed, toMain };
   renderRangeChange(visible, comparing);
-  renderLegend(visible, compBars, comparing, maAllowed);
+  renderLegend(visible, compBars, comparing, maAllowed, s.hovering ? s.hoverT : null);
 }
 
 function trendColor(visible) {
@@ -265,6 +385,8 @@ function trendColor(visible) {
 }
 
 function clearSeries() {
+  s.view = null;
+  endHover();
   if (!s.series) return;
   for (const series of Object.values(s.series)) series.setData([]);
   $('#chart-legend').hidden = true;
@@ -306,7 +428,8 @@ function renderRangeChange(visible, comparing) {
   el.classList.add(change > 0 ? 'up' : change < 0 ? 'down' : 'muted');
 }
 
-function renderLegend(visible, compBars, comparing, maAllowed) {
+/** Legend; while hovering (t set) the compare values are as of that point. */
+function renderLegend(visible, compBars, comparing, maAllowed, t = null) {
   const legend = $('#chart-legend');
   legend.innerHTML = '';
   const add = (color, label, value) => {
@@ -322,7 +445,8 @@ function renderLegend(visible, compBars, comparing, maAllowed) {
     legend.append(span);
   };
   const pct = (bars) => {
-    const v = (bars[bars.length - 1].c / bars[0].c - 1) * 100;
+    const end = t === null ? bars[bars.length - 1] : barAt(bars, t);
+    const v = (end.c / bars[0].c - 1) * 100;
     return `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v).toFixed(2)}%`;
   };
 

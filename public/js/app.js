@@ -405,14 +405,17 @@ function renderDetail() {
   const q = state.quotes.get(sel.symbol);
   $('#detail-name').textContent = sel.name || sel.symbol;
   $('#detail-symbol').textContent = sel.symbol;
-  $('#detail-price').textContent = q ? formatPrice(q.price) : '—';
-  const ch = $('#detail-change');
-  if (q) {
-    ch.textContent = formatChange(q.change, q.changePercent) + ' today';
-    ch.className = `change ${changeClass(q.change)}`;
-  } else {
-    ch.textContent = state.quoteErrors.get(sel.symbol) || '';
-    ch.className = 'change muted';
+  // While the chart is being hovered/touched, the header shows that point instead.
+  if (!chart.isHovering()) {
+    $('#detail-price').textContent = q ? formatPrice(q.price) : '—';
+    const ch = $('#detail-change');
+    if (q) {
+      ch.textContent = formatChange(q.change, q.changePercent) + ' today';
+      ch.className = `change ${changeClass(q.change)}`;
+    } else {
+      ch.textContent = state.quoteErrors.get(sel.symbol) || '';
+      ch.className = 'change muted';
+    }
   }
   $('#add-btn').hidden = state.items.some((i) => i.symbol === sel.symbol);
   chart.show(sel.symbol, sel.name);
@@ -516,7 +519,7 @@ document.addEventListener('visibilitychange', () => {
 });
 
 // ------------------------------------------------------------ boot
-chart.init({ getQuote: (symbol) => state.quotes.get(symbol) });
+chart.init({ getQuote: (symbol) => state.quotes.get(symbol), onHoverEnd: () => renderDetail() });
 alerts.init({
   getQuote: (symbol) => state.quotes.get(symbol),
   getName: nameFor,
