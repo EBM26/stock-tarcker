@@ -96,8 +96,9 @@ function ensureChart() {
     s.chart.addSeries(LWC.LineSeries, {
       color,
       lineWidth: width,
+      // The current price is already in the header, so no price label or line on the chart.
       priceLineVisible: false,
-      lastValueVisible: width > 1,
+      lastValueVisible: false,
       crosshairMarkerRadius: 3,
     });
   s.series = {
