@@ -14,6 +14,11 @@ export function setUnauthorizedHandler(fn) {
   onUnauthorized = fn;
 }
 
+let onConfigMissing = () => {};
+export function setConfigMissingHandler(fn) {
+  onConfigMissing = fn;
+}
+
 const TIMEOUT_MS = 15000;
 
 export async function api(path, { method = 'GET', body, signal } = {}) {
@@ -41,6 +46,10 @@ export async function api(path, { method = 'GET', body, signal } = {}) {
     /* Non-JSON response; handled below. */
   }
 
+  if (data?.code === 'config_missing') {
+    onConfigMissing(Array.isArray(data.missing) ? data.missing : []);
+    throw new ApiError(data.error, res.status, data.code);
+  }
   if (res.status === 401 && path !== '/api/login') {
     onUnauthorized();
     throw new ApiError('Please log in.', 401);

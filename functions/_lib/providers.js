@@ -2,7 +2,7 @@
 // without touching the rest of the app. Functions return plain, provider-neutral shapes.
 
 export class ProviderError extends Error {
-  // code: 'rate_limited' | 'timeout' | 'not_found' | 'config' | 'upstream'
+  // code: 'rate_limited' | 'timeout' | 'not_found' | 'config' | 'bad_key' | 'upstream'
   constructor(code, message, status = 502) {
     super(message);
     this.code = code;
@@ -24,7 +24,7 @@ async function fetchJson(url, { headers = {}, timeoutMs = DEFAULT_TIMEOUT_MS, pr
   }
   if (res.status === 429) throw new ProviderError('rate_limited', `${provider} rate limit reached. Try again in a minute.`, 429);
   if (res.status === 401 || res.status === 403) {
-    throw new ProviderError('config', `${provider} rejected the API key (or this data needs a paid plan).`, 502);
+    throw new ProviderError('bad_key', `${provider} rejected the API key (or this data needs a paid plan).`, 502);
   }
   if (!res.ok) throw new ProviderError('upstream', `${provider} returned an error (${res.status}).`);
   try {

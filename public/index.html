@@ -10,6 +10,16 @@
   <script type="module" src="js/app.js"></script>
 </head>
 <body>
+  <!-- Shown instead of the app when the server reports missing settings. -->
+  <section id="config-screen" class="config-screen" hidden>
+    <div class="config-card">
+      <h1>Setup isn't finished</h1>
+      <p>The server is missing these settings:</p>
+      <ul id="config-missing"></ul>
+      <p class="muted">Add them in the Cloudflare dashboard under <strong>Settings → Variables and Secrets</strong> (type <strong>Secret</strong>), then redeploy. For local development, add them to <code>.dev.vars</code>. A missing <code>DB</code> means the D1 binding in <code>wrangler.jsonc</code> isn't set up.</p>
+    </div>
+  </section>
+
   <!-- Password gate. Shown/hidden only via the [hidden] attribute (see styles.css). -->
   <section id="login-screen" class="login" hidden>
     <form id="login-form" class="login-card">

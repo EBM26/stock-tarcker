@@ -52,6 +52,13 @@ button, input, select { font: inherit; color: inherit; }
 .icon-btn:hover { background: var(--soft); color: var(--text); }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
+/* Full-page message for missing server configuration */
+.config-screen { min-height: 100vh; display: grid; place-items: center; padding: 16px; }
+.config-card { max-width: 460px; }
+.config-card h1 { margin: 0 0 8px; font-size: 22px; }
+.config-card ul { padding-left: 20px; }
+.config-card code { background: var(--soft); padding: 1px 6px; border-radius: 4px; font-size: 14px; }
+
 /* Login */
 .login { min-height: 100vh; display: grid; place-items: center; padding: 16px; }
 .login-card { width: 100%; max-width: 320px; display: grid; gap: 10px; }
@@ -70,10 +77,11 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
 /* Top bar */
 .topbar {
   display: flex; align-items: center; gap: 16px;
-  padding: 12px 24px;
+  /* Line the header up with the centered 1280px content column below. */
+  padding: 12px max(24px, calc((100% - 1280px) / 2 + 24px));
   border-bottom: 1px solid var(--line);
 }
-.brand { font-weight: 650; font-size: 17px; }
+.brand { font-weight: 650; font-size: 17px; flex-shrink: 0; white-space: nowrap; }
 .topbar .search { flex: 1; max-width: 480px; margin: 0 auto; }
 
 /* Search (autocomplete) */
@@ -111,7 +119,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
 
 /* Notice */
 .notice {
-  margin: 12px 24px 0; padding: 8px 12px;
+  max-width: 1232px; margin: 12px auto 0; padding: 8px 12px;
   background: var(--soft); border-radius: 8px; font-size: 14px;
 }
 

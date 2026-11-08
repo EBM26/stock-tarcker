@@ -1,4 +1,4 @@
-import { api, ApiError, setUnauthorizedHandler } from './api.js';
+import { api, ApiError, setConfigMissingHandler, setUnauthorizedHandler } from './api.js';
 import { changeClass, formatChange, formatPrice, formatTime, isMarketOpen } from './format.js';
 import { createSearch } from './search.js';
 
@@ -51,6 +51,7 @@ function notify(message) {
 
 // ------------------------------------------------------------ login gate
 function showLogin() {
+  if (configBlocked) return;
   stopPolling();
   state.started = false;
   $('#app').hidden = true;
@@ -60,11 +61,33 @@ function showLogin() {
 }
 
 function showApp() {
+  if (configBlocked) return;
   $('#login-screen').hidden = true;
   $('#app').hidden = false;
 }
 
 setUnauthorizedHandler(showLogin);
+
+// Missing server settings: replace everything with one clear full-page message.
+let configBlocked = false;
+function showConfigMissing(missing) {
+  configBlocked = true;
+  stopPolling();
+  state.started = false;
+  $('#app').hidden = true;
+  $('#login-screen').hidden = true;
+  const ul = $('#config-missing');
+  ul.innerHTML = '';
+  for (const name of missing.length ? missing : ['(unknown setting)']) {
+    const li = document.createElement('li');
+    const code = document.createElement('code');
+    code.textContent = name;
+    li.append(code);
+    ul.append(li);
+  }
+  $('#config-screen').hidden = false;
+}
+setConfigMissingHandler(showConfigMissing);
 
 $('#login-form').addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -460,7 +483,7 @@ async function start() {
   try {
     await loadLists();
   } catch (err) {
-    if (err.status === 401) return; // login screen already shown
+    if (err.status === 401 || err.code === 'config_missing') return; // login/config screen already shown
     showApp();
     $('#last-updated').textContent = '';
     notify(`Couldn't load your watchlists. ${err.message}`);

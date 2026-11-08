@@ -8,14 +8,8 @@
 			// Binding name used by the code: env.DB
 			"binding": "DB",
 			"database_name": "stock-tracker",
-			// Run `npx wrangler d1 create stock-tracker` and paste the real ID here.
 			"database_id": "24c72428-1a43-4084-9487-cbebe3c9f9b7",
 			"migrations_dir": "migrations"
-		},
-		{
-			"binding": "stock_tracker",
-			"database_name": "stock-tracker",
-			"database_id": "24c72428-1a43-4084-9487-cbebe3c9f9b7"
 		}
 	],
 	"vars": {
