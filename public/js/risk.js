@@ -1,4 +1,4 @@
-// "Summarize risks" (Gemini via the server). Runs only when clicked.
+// "Summarize outlook": upsides and risks from Gemini via the server. Runs only when clicked.
 import { api } from './api.js';
 
 const $ = (sel) => document.querySelector(sel);
@@ -21,7 +21,7 @@ export function show(symbol) {
   const btn = $('#risk-btn');
   btn.hidden = false;
   btn.disabled = false;
-  btn.textContent = 'Summarize risks';
+  btn.textContent = 'Summarize outlook';
 }
 
 function setStatus(text) {
@@ -52,7 +52,7 @@ async function run(refresh) {
     s.retryRefresh = refresh;
     setStatus(err.message || "Couldn't create the summary.");
     btn.hidden = false;
-    btn.textContent = $('#risk-body').hidden ? 'Summarize risks' : 'Try again';
+    btn.textContent = $('#risk-body').hidden ? 'Summarize outlook' : 'Try again';
   } finally {
     if (mySeq === s.seq) {
       s.busy = false;
@@ -63,22 +63,43 @@ async function run(refresh) {
 
 const el = (tag, className, text) => Object.assign(document.createElement(tag), { className: className || '', textContent: text ?? '' });
 
-function render({ summary, created_at: createdAt }) {
+function itemList(items, key, tagClass) {
+  const ul = el('ul', 'risk-list');
+  for (const r of items) {
+    const li = el('li');
+    const head = el('div', 'risk-head');
+    head.append(el('span', `risk-tag ${tagClass(r[key])}`, r[key]), el('strong', '', r.title));
+    li.append(head, el('p', '', r.detail));
+    ul.append(li);
+  }
+  return ul;
+}
+
+function column(title, items, key, tagClass, emptyText) {
+  const col = el('div', 'outlook-col');
+  col.append(el('h4', '', title));
+  col.append(items.length ? itemList(items, key, tagClass) : el('p', 'muted small', emptyText));
+  return col;
+}
+
+function render({ summary, created_at: createdAt, legacy, refresh_error: refreshError }) {
   const body = $('#risk-body');
   body.innerHTML = '';
 
   body.append(el('p', 'risk-overview', summary.overview));
 
-  if (summary.risks.length) {
-    const ul = el('ul', 'risk-list');
-    for (const r of summary.risks) {
-      const li = el('li');
-      const head = el('div', 'risk-head');
-      head.append(el('span', `risk-tag risk-${r.level}`, r.level), el('strong', '', r.title));
-      li.append(head, el('p', '', r.detail));
-      ul.append(li);
-    }
-    body.append(ul);
+  if (legacy) {
+    // Saved before upsides existed and couldn't be regenerated just now: show risks only.
+    const col = column('Risks', summary.risks || [], 'level', (l) => `risk-${l}`, 'No notable risks in this data.');
+    body.append(col);
+  } else {
+    // Upside first: it comes first when the columns stack on phones.
+    const grid = el('div', 'outlook-grid');
+    grid.append(
+      column('Upside', summary.upsides, 'strength', () => 'up-tag', 'No clear upsides in this data.'),
+      column('Risks', summary.risks, 'level', (l) => `risk-${l}`, 'No notable risks in this data.')
+    );
+    body.append(grid);
   }
 
   if (summary.watch.length) {
@@ -93,7 +114,7 @@ function render({ summary, created_at: createdAt }) {
   const meta = el('p', 'muted small risk-meta');
   const when = createdAt ? new Date(createdAt).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
   meta.append(`Generated ${when} · `);
-  const refresh = el('button', 'link-btn', 'Refresh');
+  const refresh = el('button', 'link-btn', legacy ? 'Refresh for full outlook' : 'Refresh');
   refresh.type = 'button';
   refresh.addEventListener('click', () => {
     $('#risk-btn').hidden = true;
@@ -101,5 +122,6 @@ function render({ summary, created_at: createdAt }) {
   });
   meta.append(refresh);
   body.append(meta);
+  if (legacy && refreshError) setStatus(`Couldn't update to the full outlook yet: ${refreshError}`);
   body.hidden = false;
 }

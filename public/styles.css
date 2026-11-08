@@ -306,6 +306,10 @@ table.holdings { width: 100%; border-collapse: collapse; font-size: 14px; white-
 .risk-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .risk-tag { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; padding: 2px 7px; border-radius: 999px; }
 .risk-low { background: #eef2f7; color: #475569; }
+.up-tag { background: #dcfce7; color: #166534; }
+.outlook-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 28px; }
+.outlook-col { min-width: 0; }
+.outlook-col h4 { margin: 4px 0 2px; }
 .risk-medium { background: #fef3c7; color: #92400e; }
 .risk-high { background: #fee2e2; color: #b91c1c; }
 .risk h4 { margin: 12px 0 4px; font-size: 14px; }
@@ -355,6 +359,7 @@ dialog h3 { margin: 0 0 12px; font-size: 17px; }
   input, select, textarea { font-size: 16px; }
   .chart-area { height: 260px; }
   .ranges button { padding: 4px 10px; }
+  .outlook-grid { grid-template-columns: minmax(0, 1fr); gap: 8px; }
   .legend .sep { display: none; } /* entries stack on phones; no dangling separator */
   .big-price { font-size: 28px; }
 }

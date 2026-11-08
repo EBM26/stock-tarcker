@@ -4,7 +4,7 @@ A calm, simple web page for following a few stocks: watchlists, live quotes, cha
 
 Plain HTML/CSS/JS front end (`public/`), Cloudflare Pages Functions back end (`functions/`), Cloudflare D1 database (`migrations/`). All third-party API code lives in `functions/_lib/providers.js`.
 
-**Build status:** Phase 1 (setup, password gate, watchlists, search, live quotes) All five phases are done: watchlists and quotes, charts, price alerts, portfolio, and news / AI risk summaries / settings.
+**Build status:** Phase 1 (setup, password gate, watchlists, search, live quotes) All five phases are done: watchlists and quotes, charts, price alerts, portfolio, and news / AI outlook summaries / settings.
 
 ## Free API keys
 
@@ -55,5 +55,5 @@ To change it, edit the `vars` section of `wrangler.jsonc` and push. Once `wrangl
 - **Alerts** are checked in the browser using the prices already being polled, so they only work while the page is open in a tab. One alert per ticker; setting a new one replaces the old one. When a price crosses, the browser asks the server to mark the alert triggered (`UPDATE … WHERE status = 'active'`), and only the browser that wins shows the notification, so two open devices never both alert. Desktop notifications need permission (gear menu → Enable notifications). The chime plays only after you've clicked somewhere on the page, which is a browser rule.
 - **Portfolio** holdings are separate from watchlists (one row per ticker). Their prices are polled only while the Portfolio tab is open. Totals leave out any holding without a price yet and say so.
 - **News** shows the latest 5 headlines from the past week (Finnhub, cached 15 minutes).
-- **Risk summary** runs only when you click "Summarize risks". The server gathers the company profile, basic financials and up to 15 recent headlines, asks Gemini for JSON, validates it, and saves one summary per ticker per US market day (click Refresh for a new one). Gemini's free tier has daily limits; if it's busy you'll see "Gemini is busy, try again in a minute."
+- **Outlook summary** runs only when you click "Summarize outlook". The server gathers the company profile, basic financials and up to 15 recent headlines, asks Gemini for JSON (overview, upsides, risks, things to watch), validates it, and saves one summary per ticker per US market day (click Refresh for a new one). Gemini is told to use only that information, let the evidence decide how many upsides and risks there are, state upsides as facts (never reasons to buy), and give no buy/sell/hold advice or price predictions. Summaries saved before upsides existed are regenerated automatically when opened; if Gemini is busy then, the old risks-only version is shown with a "Refresh for full outlook" link. Gemini's free tier has daily limits; if it's busy you'll see "Gemini is busy, try again in a minute."
 - **Settings** (gear icon): enable notifications, export data (downloads a JSON backup of watchlists, holdings and alerts), import data (replaces everything after a confirmation; done in one database transaction), log out.
