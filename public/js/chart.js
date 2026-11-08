@@ -17,9 +17,11 @@ const COLORS = {
   grid: '#f1f2f4',
   text: '#6b7280',
 };
-const RANGES = ['1H', '1D', '1M', '1Y'];
-const RANGE_WORDS = { '1H': 'past hour', '1D': 'today', '1M': 'past month', '1Y': 'past year' };
-const MA_RANGES = new Set(['1M', '1Y']);
+const RANGES = ['1H', '1D', '1M', '1Y', '5Y', 'All'];
+const RANGE_WORDS = { '1H': 'past hour', '1D': 'today', '1M': 'past month', '1Y': 'past year', '5Y': 'past 5 years', All: 'all time' };
+const MA_RANGES = new Set(['1M', '1Y']); // daily data; 1H/1D show the toggles disabled
+const LONG_RANGES = new Set(['5Y', 'All']); // weekly/monthly data; toggles hidden
+const INTRADAY = new Set(['1min', '5min']);
 
 const s = {
   symbol: null,
@@ -190,11 +192,14 @@ function barAt(bars, t) {
   return bars[lo];
 }
 
-function formatBarTime(t) {
-  const intraday = s.main?.interval !== '1day';
+/** Date for a bar: time for 1H/1D, full date for 1M/1Y, month and year for 5Y/All. */
+function formatBarTime(t, interval = s.main?.interval) {
+  const intraday = INTRADAY.has(interval);
   const opts = intraday
     ? { timeZone: 'UTC', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }
-    : { timeZone: 'UTC', month: 'short', day: 'numeric', year: 'numeric' };
+    : interval === '1day'
+      ? { timeZone: 'UTC', month: 'short', day: 'numeric', year: 'numeric' }
+      : { timeZone: 'UTC', month: 'short', year: 'numeric' };
   // Bar times are New York wall-clock time stored as UTC, so format in UTC.
   return new Date(t * 1000).toLocaleString('en-US', opts) + (intraday ? ' ET' : '');
 }
@@ -251,8 +256,16 @@ export function onQuotesUpdated() {
 
 // ------------------------------------------------------------ state changes
 
+// The chart library doesn't report a crosshair move when only the data changes,
+// so drop any hover state ourselves before swapping data.
+function resetHover() {
+  s.chart?.clearCrosshairPosition();
+  endHover();
+}
+
 function setRange(range) {
   if (!RANGES.includes(range) || range === s.range) return;
+  resetHover();
   s.range = range;
   store.set('range', range);
   renderControls();
@@ -261,6 +274,7 @@ function setRange(range) {
 
 function setCompare(r) {
   if (r && r.symbol === s.symbol) return;
+  resetHover();
   s.compare = r;
   s.comp = null;
   s.compError = '';
@@ -349,9 +363,19 @@ function draw() {
   chart.applyOptions({
     localization: {
       priceFormatter: comparing ? (v) => `${v > 0 ? '+' : ''}${v.toFixed(2)}%` : (v) => formatPrice(v),
+      timeFormatter: (t) => formatBarTime(t),
     },
-    timeScale: { timeVisible: s.main.interval !== '1day', secondsVisible: false },
+    timeScale: { timeVisible: INTRADAY.has(s.main.interval), secondsVisible: false },
   });
+
+  // When the data set changes (ticker, range or compare), empty every line first, so the
+  // chart never briefly mixes, say, new weekly main data with old monthly compare data
+  // (that left Lightweight Charts in a broken hover state).
+  const key = `${s.symbol}|${s.range}|${comparing ? s.compare.symbol : ''}`;
+  if (key !== s.drawnKey) {
+    for (const series of Object.values(s.series)) series.setData([]);
+    s.drawnKey = key;
+  }
 
   s.series.main.applyOptions({ color: comparing ? COLORS.main : trendColor(visible) });
   s.series.main.setData(points(visible, toMain));
@@ -386,7 +410,8 @@ function trendColor(visible) {
 
 function clearSeries() {
   s.view = null;
-  endHover();
+  s.drawnKey = null;
+  resetHover();
   if (!s.series) return;
   for (const series of Object.values(s.series)) series.setData([]);
   $('#chart-legend').hidden = true;
@@ -412,6 +437,7 @@ function renderControls() {
   $('#ma50').disabled = !maAllowed;
   $('#ma200').disabled = !maAllowed;
   $('#ma-hint').hidden = maAllowed;
+  $('#ma-options').hidden = LONG_RANGES.has(s.range);
   $('#compare-clear').hidden = !s.compare;
 }
 
@@ -424,7 +450,8 @@ function renderRangeChange(visible, comparing) {
   const first = visible[0].c;
   const last = visible[visible.length - 1].c;
   const change = last - first;
-  el.textContent = `${formatChange(change, (change / first) * 100)} ${RANGE_WORDS[s.range]}`;
+  const since = s.range === 'All' ? ` (since ${formatBarTime(visible[0].t)})` : '';
+  el.textContent = `${formatChange(change, (change / first) * 100)} ${RANGE_WORDS[s.range]}${since}`;
   el.classList.add(change > 0 ? 'up' : change < 0 ? 'down' : 'muted');
 }
 

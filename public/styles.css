@@ -251,7 +251,7 @@ table.holdings { width: 100%; border-collapse: collapse; font-size: 14px; white-
 .change { font-variant-numeric: tabular-nums; }
 /* Chart */
 .chart-toolbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
-.ranges { display: inline-flex; background: var(--soft); border-radius: 8px; padding: 3px; }
+.ranges { display: inline-flex; flex-wrap: nowrap; max-width: 100%; background: var(--soft); border-radius: 8px; padding: 3px; }
 .ranges button {
   border: 0; background: none; cursor: pointer;
   padding: 4px 12px; border-radius: 6px; font-size: 14px; color: var(--muted);
@@ -315,5 +315,6 @@ dialog h3 { margin: 0 0 12px; font-size: 17px; }
      which leaves the page shifted sideways. */
   input, select, textarea { font-size: 16px; }
   .chart-area { height: 260px; }
+  .ranges button { padding: 4px 10px; }
   .big-price { font-size: 28px; }
 }

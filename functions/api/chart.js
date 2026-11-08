@@ -9,6 +9,11 @@ const RANGES = {
   '1D': { interval: '5min', outputsize: 160, ttl: 60, latestSessionOnly: true },
   '1M': { interval: '1day', outputsize: 480, ttl: 3600, months: 1 },
   '1Y': { interval: '1day', outputsize: 480, ttl: 3600, months: 12 },
+  // Long ranges change slowly: cache for 12 hours.
+  '5Y': { interval: '1week', outputsize: 270, ttl: 12 * 3600, months: 60 },
+  // As much monthly history as Twelve Data returns (max 5000 bars); if the plan returns less,
+  // we simply show what we get.
+  ALL: { interval: '1month', outputsize: 5000, ttl: 12 * 3600, all: true },
 };
 
 /**
@@ -23,7 +28,7 @@ export async function onRequestGet({ request, env }) {
   const range = (url.searchParams.get('range') || '').toUpperCase();
   const cfg = RANGES[range];
   if (!symbol) return errorResponse('Invalid ticker.');
-  if (!cfg) return errorResponse('Range must be one of 1H, 1D, 1M, 1Y.');
+  if (!cfg) return errorResponse('Range must be one of 1H, 1D, 1M, 1Y, 5Y, All.');
 
   const key = `chart:${symbol}:${cfg.interval}:${cfg.outputsize}`;
   let series = await safely(cacheGet(env.DB, key), null);
@@ -39,7 +44,9 @@ export async function onRequestGet({ request, env }) {
 
   let bars = series.bars;
   let start;
-  if (cfg.latestSessionOnly) {
+  if (cfg.all) {
+    start = bars[0].t;
+  } else if (cfg.latestSessionOnly) {
     // Keep only the most recent trading day (e.g. no overnight jump at 9:35 am).
     const lastDay = Math.floor(bars[bars.length - 1].t / 86400);
     bars = bars.filter((b) => Math.floor(b.t / 86400) === lastDay);

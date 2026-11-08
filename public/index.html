@@ -97,12 +97,14 @@
               <button type="button" data-range="1D">1D</button>
               <button type="button" data-range="1M">1M</button>
               <button type="button" data-range="1Y">1Y</button>
+              <button type="button" data-range="5Y">5Y</button>
+              <button type="button" data-range="All">All</button>
             </div>
             <span id="range-change" class="range-change"></span>
             <button id="chart-options-btn" type="button" class="link-btn" aria-expanded="false" aria-controls="chart-options">Chart options</button>
           </div>
           <div id="chart-options" class="chart-options" hidden>
-            <div class="option-group">
+            <div class="option-group" id="ma-options">
               <label><input type="checkbox" id="ma50"> 50-day average</label>
               <label><input type="checkbox" id="ma200"> 200-day average</label>
               <span id="ma-hint" class="muted small">Moving averages are available on 1M and 1Y.</span>
